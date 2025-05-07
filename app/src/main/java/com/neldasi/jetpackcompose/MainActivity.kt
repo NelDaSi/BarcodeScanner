@@ -1,6 +1,8 @@
 package com.neldasi.jetpackcompose
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
@@ -12,19 +14,39 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateSetOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -33,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import com.neldasi.jetpackcompose.ui.theme.JetpackComposeTheme
 
@@ -50,28 +73,70 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@androidx.annotation.OptIn(ExperimentalGetImage::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreenContent(modifier: Modifier = Modifier) {
-    var expanded by remember { mutableStateOf(false) }
-    var items by remember { mutableStateOf(listOf("Item 1", "Item 2", "Item 3", "Item 4", "Item 5")) }
-    var showCamera by remember { mutableStateOf(false) }
-    var showPermissionDialog by remember { mutableStateOf(false) }
-    var scannedText by remember { mutableStateOf("") }
-
-    val analyzer = remember {
-        qrCodeAnalyzer { result ->
-            scannedText = result
-            items = listOf(result) + items  // 👈 Add the scanned result to the top of the list
-            showCamera = false
-        }
-    }
-
-
-
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
+
+    val sharedPreferences = remember {
+        context.getSharedPreferences("scanned_data", Context.MODE_PRIVATE)
+    }
+
+    val itemsSet = remember { mutableStateSetOf<String>() }
+    var scannedText by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
+    var showCamera by remember { mutableStateOf(false) }
+    var showPermissionDialog by remember { mutableStateOf(false) }
+
+    @SuppressLint("UseKtx")
+    fun saveItems(items: Set<String>) {
+        with(sharedPreferences.edit()) {
+            putStringSet("items", items)
+            apply()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        val savedData = sharedPreferences.getStringSet("items", emptySet()) ?: emptySet()
+        itemsSet.addAll(savedData)
+    }
+
+    val analyzer = remember {
+        ImageAnalysis.Analyzer { imageProxy ->
+            val mediaImage = imageProxy.image
+            if (mediaImage != null) {
+                val inputImage = InputImage.fromMediaImage(
+                    mediaImage,
+                    imageProxy.imageInfo.rotationDegrees
+                )
+                BarcodeScanning.getClient().process(inputImage)
+                    .addOnSuccessListener { barcodes ->
+                        val newBarcode = barcodes.firstOrNull { barcode ->
+                            val value = barcode.rawValue
+                            value != null && value !in itemsSet
+                        }
+
+                        newBarcode?.rawValue?.let { value ->
+                            itemsSet.add(value)
+                            saveItems(itemsSet.toSet())
+                            scannedText = value
+                            showCamera = false
+                        }
+                    }
+                    .addOnFailureListener {
+                        Log.e("qrAnalyzer", "Failed to process image", it)
+                    }
+                    .addOnCompleteListener {
+                        imageProxy.close()
+                    }
+            } else {
+                imageProxy.close()
+            }
+        }
+    }
 
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -80,7 +145,7 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
             showCamera = true
             showPermissionDialog = false
         } else {
-            showPermissionDialog = true // Show dialog if denied
+            showPermissionDialog = true
         }
     }
 
@@ -100,14 +165,8 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("Settings") },
-                            onClick = { expanded = false }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("About") },
-                            onClick = { expanded = false }
-                        )
+                        DropdownMenuItem(text = { Text("Settings") }, onClick = { expanded = false })
+                        DropdownMenuItem(text = { Text("About") }, onClick = { expanded = false })
                     }
                 }
             )
@@ -120,9 +179,10 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.Center
             ) {
                 Button(onClick = {
-                    val permissionCheckResult =
-                        ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
-                    if (permissionCheckResult == PackageManager.PERMISSION_GRANTED) {
+                    val permissionCheck = ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.CAMERA
+                    )
+                    if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
                         showCamera = true
                         showPermissionDialog = false
                     } else {
@@ -136,13 +196,19 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
     ) { innerPadding ->
         Column(modifier = modifier.padding(innerPadding)) {
             LazyColumn {
-                items(items) { item ->
-                    Row(
-                        modifier = Modifier.padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                items(itemsSet.toList()) { item ->
+                    Text(
+                        text = item,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+                if (scannedText.isNotEmpty()) {
+                    item {
                         Text(
-                            text = item,
+                            text = scannedText,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
@@ -150,69 +216,46 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
                         )
                     }
                 }
-                if (scannedText.isNotEmpty()) {
-                    item {
-                        Row(
-                            modifier = Modifier.padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = scannedText,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
             }
 
             if (showCamera) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .background(Color.Black)
-                ) {
-                    AndroidView(
-                        factory = { context ->
-                            val previewView = PreviewView(context).also {
-                                it.scaleType = PreviewView.ScaleType.FILL_CENTER
+                AndroidView(
+                    factory = { context ->
+                        val previewView = PreviewView(context).apply {
+                            scaleType = PreviewView.ScaleType.FILL_CENTER
+                        }
+
+                        val preview = Preview.Builder().build().also {
+                            it.surfaceProvider = previewView.surfaceProvider
+                        }
+
+                        val selector = CameraSelector.DEFAULT_BACK_CAMERA
+                        val imageAnalysis = ImageAnalysis.Builder()
+                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                            .build()
+                            .also {
+                                it.setAnalyzer(ContextCompat.getMainExecutor(context), analyzer)
                             }
 
-                            val preview = Preview.Builder().build()
-                            val selector = CameraSelector.DEFAULT_BACK_CAMERA
-                            val imageAnalysis = ImageAnalysis.Builder()
-                                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                                .build()
+                        cameraProviderFuture.addListener({
+                            try {
+                                val cameraProvider = cameraProviderFuture.get()
+                                cameraProvider.unbindAll()
+                                cameraProvider.bindToLifecycle(
+                                    lifecycleOwner, selector, preview, imageAnalysis
+                                )
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }, ContextCompat.getMainExecutor(context))
 
-                            imageAnalysis.setAnalyzer(
-                                ContextCompat.getMainExecutor(context),
-                                analyzer
-                            )
-
-                            cameraProviderFuture.addListener({
-                                try {
-                                    val cameraProvider = cameraProviderFuture.get()
-                                    cameraProvider.unbindAll()
-                                    cameraProvider.bindToLifecycle(
-                                        lifecycleOwner,
-                                        selector,
-                                        preview,
-                                        imageAnalysis
-                                    )
-                                    preview.surfaceProvider = previewView.surfaceProvider
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            }, ContextCompat.getMainExecutor(context))
-
-                            previewView
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                        previewView
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp)
+                        .background(Color.Black)
+                )
             }
 
             if (showPermissionDialog) {
@@ -234,40 +277,6 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
                     }
                 )
             }
-        }
-    }
-}
-
-@androidx.annotation.OptIn(ExperimentalGetImage::class)
-private fun qrCodeAnalyzer(onScanned: (String) -> Unit): ImageAnalysis.Analyzer {
-    val scanner = com.google.mlkit.vision.barcode.BarcodeScanning.getClient()
-    return ImageAnalysis.Analyzer { imageProxy ->
-        val mediaImageToInputImage = { imageProxy: ImageProxy ->
-            imageProxy.image?.let { mediaImage ->
-                InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-            }
-        }
-
-        val inputImage = mediaImageToInputImage(imageProxy)
-
-        if (inputImage != null) {
-            scanner.process(inputImage)
-                .addOnSuccessListener { barcodes ->
-                    for (barcode in barcodes) {
-                        barcode.rawValue?.let { value ->
-                            onScanned(value)
-                            return@addOnSuccessListener
-                        }
-                    }
-                }
-                .addOnFailureListener {
-                    Log.e("qrAnalyzer", "Failed to process image", it)
-                }
-                .addOnCompleteListener {
-                    imageProxy.close()
-                }
-        } else {
-            imageProxy.close()
         }
     }
 }
