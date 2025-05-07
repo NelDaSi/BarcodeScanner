@@ -41,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -90,15 +91,17 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
     var expanded by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(false) }
     var showPermissionDialog by remember { mutableStateOf(false) }
+    var analysisError by remember { mutableStateOf("") }
 
     @SuppressLint("UseKtx")
     fun saveItems(items: Set<String>) {
         with(sharedPreferences.edit()) {
             putStringSet("items", items)
-            apply()
+            commit()
         }
     }
 
+    // Load saved items on initial composition
     LaunchedEffect(Unit) {
         val savedData = sharedPreferences.getStringSet("items", emptySet()) ?: emptySet()
         itemsSet.addAll(savedData)
@@ -106,28 +109,37 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
 
     val analyzer = remember {
         ImageAnalysis.Analyzer { imageProxy ->
+            // Retrieve the image from the image proxy
             val mediaImage = imageProxy.image
             if (mediaImage != null) {
+                // Convert the image to an InputImage for ML Kit processing
                 val inputImage = InputImage.fromMediaImage(
                     mediaImage,
                     imageProxy.imageInfo.rotationDegrees
                 )
+                // Process the image with BarcodeScanning client
                 BarcodeScanning.getClient().process(inputImage)
                     .addOnSuccessListener { barcodes ->
+                        // Find the first barcode that is new and not already in the itemsSet
                         val newBarcode = barcodes.firstOrNull { barcode ->
                             val value = barcode.rawValue
                             value != null && value !in itemsSet
                         }
 
+                        // If a new barcode is found, add it to the set, save it, and update states
                         newBarcode?.rawValue?.let { value ->
                             itemsSet.add(value)
                             saveItems(itemsSet.toSet())
                             scannedText = value
+
+                            // Hide the camera preview after scanning
                             showCamera = false
+                            analysisError = ""
                         }
                     }
                     .addOnFailureListener {
                         Log.e("qrAnalyzer", "Failed to process image", it)
+                        analysisError = "Failed to process image, please try again"
                     }
                     .addOnCompleteListener {
                         imageProxy.close()
@@ -138,17 +150,19 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
         }
     }
 
+
+    // Requesting Camera permission
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
             showCamera = true
-            showPermissionDialog = false
         } else {
             showPermissionDialog = true
         }
     }
 
+    // Layout of the main screen with the topBar and bottomBar
     Scaffold(
         topBar = {
             TopAppBar(
@@ -158,8 +172,9 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
                     titleContentColor = MaterialTheme.colorScheme.primary
                 ),
                 actions = {
+                    // Dropdown menu in the top app bar
                     IconButton(onClick = { expanded = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "More")
+                        Icon(Icons.Filled.MoreVert, contentDescription = "Open Menu")
                     }
                     DropdownMenu(
                         expanded = expanded,
@@ -178,13 +193,13 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.Center
             ) {
-                Button(onClick = {
+                Button(onClick = { // Handle camera permission check and launch request
+                    //checking if permission is granted
                     val permissionCheck = ContextCompat.checkSelfPermission(
                         context, Manifest.permission.CAMERA
                     )
                     if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
                         showCamera = true
-                        showPermissionDialog = false
                     } else {
                         requestPermissionLauncher.launch(Manifest.permission.CAMERA)
                     }
@@ -194,43 +209,50 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
             }
         }
     ) { innerPadding ->
+        // Main content column
         Column(modifier = modifier.padding(innerPadding)) {
             LazyColumn {
-                items(itemsSet.toList()) { item ->
-                    Text(
-                        text = item,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        textAlign = TextAlign.Center
-                    )
+                if(itemsSet.isEmpty()){
+                    item{
+                        CenteredTextItem("No items scanned yet")
+                    }
+                }else{
+                    // Display each item in the set in a lazy list
+                    items(itemsSet.toList()) { item ->
+                        CenteredTextItem(item)
+
+                    }
+                }
+                if(analysisError.isNotBlank()){
+                    item{
+                        CenteredTextItem(analysisError)
+                    }
                 }
                 if (scannedText.isNotEmpty()) {
                     item {
-                        Text(
-                            text = scannedText,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            textAlign = TextAlign.Center
-                        )
+                        CenteredTextItem(scannedText)
                     }
                 }
             }
 
+            // Display camera preview if showCamera is true
             if (showCamera) {
                 AndroidView(
                     factory = { context ->
+                        // Create a PreviewView to display the camera feed
                         val previewView = PreviewView(context).apply {
                             scaleType = PreviewView.ScaleType.FILL_CENTER
                         }
 
+                        // Build a Preview object to use for displaying the camera feed
                         val preview = Preview.Builder().build().also {
                             it.surfaceProvider = previewView.surfaceProvider
                         }
 
+                        // Define the camera selector (back camera)
                         val selector = CameraSelector.DEFAULT_BACK_CAMERA
                         val imageAnalysis = ImageAnalysis.Builder()
+                            // Set the backpressure strategy for the analyzer
                             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                             .build()
                             .also {
@@ -238,9 +260,9 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
                             }
 
                         cameraProviderFuture.addListener({
+                            // Bind the camera to the lifecycle and start the camera stream
                             try {
                                 val cameraProvider = cameraProviderFuture.get()
-                                cameraProvider.unbindAll()
                                 cameraProvider.bindToLifecycle(
                                     lifecycleOwner, selector, preview, imageAnalysis
                                 )
@@ -256,8 +278,19 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
                         .height(300.dp)
                         .background(Color.Black)
                 )
+                DisposableEffect(cameraProviderFuture, lifecycleOwner) {
+                    onDispose {
+                        // Unbind all use cases when the composable is disposed
+                        val cameraProvider = cameraProviderFuture.get()
+                        cameraProvider.unbindAll()
+                    }
+                }
+                Button(onClick = { showCamera = false }) {
+                    Text("Close Camera")
+                }
             }
-
+            // Alert Dialog for permission request
+            //Permission request Alert
             if (showPermissionDialog) {
                 AlertDialog(
                     onDismissRequest = { showPermissionDialog = false },
@@ -279,4 +312,14 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
             }
         }
     }
+}
+@Composable
+fun CenteredTextItem(text:String){
+    Text(
+        text = text,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        textAlign = TextAlign.Center
+    )
 }
