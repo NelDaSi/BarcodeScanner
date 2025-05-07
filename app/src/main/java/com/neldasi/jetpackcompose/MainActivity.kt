@@ -271,4 +271,3 @@ private fun qrCodeAnalyzer(onScanned: (String) -> Unit): ImageAnalysis.Analyzer 
         }
     }
 }
-
