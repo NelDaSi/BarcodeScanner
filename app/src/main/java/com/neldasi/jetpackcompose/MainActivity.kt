@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.google.common.util.concurrent.ListenableFuture
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import com.neldasi.jetpackcompose.ui.theme.JetpackComposeTheme
@@ -59,7 +60,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreenContent(modifier: Modifier = Modifier) {
     val isInPreview = LocalInspectionMode.current
-
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember(context) { ProcessCameraProvider.getInstance(context) }
@@ -75,7 +75,7 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
     var showPermissionDialog by remember { mutableStateOf(false) }
     var analysisError by remember { mutableStateOf("") }
 
-    @SuppressLint("ApplySharedPref")
+    @SuppressLint("ApplySharedPref", "UseKtx")
     fun saveItems(items: Set<String>) {
         with(sharedPreferences.edit()) {
             putStringSet("items", items)
@@ -193,47 +193,12 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
             }
 
             if (!isInPreview && showCamera) {
-                AndroidView(
-                    factory = { context ->
-                        val previewView = PreviewView(context).apply {
-                            scaleType = PreviewView.ScaleType.FILL_CENTER
-                        }
-
-                        val preview = androidx.camera.core.Preview.Builder().build().also {
-                            it.setSurfaceProvider(previewView.surfaceProvider)
-                        }
-
-                        val selector = CameraSelector.DEFAULT_BACK_CAMERA
-                        val imageAnalysis = ImageAnalysis.Builder()
-                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                            .build()
-                            .also {
-                                it.setAnalyzer(ContextCompat.getMainExecutor(context), analyzer)
-                            }
-
-                        cameraProviderFuture.addListener({
-                            val cameraProvider = cameraProviderFuture.get()
-                            cameraProvider.bindToLifecycle(
-                                lifecycleOwner, selector, preview, imageAnalysis
-                            )
-                        }, ContextCompat.getMainExecutor(context))
-
-                        previewView
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp)
-                        .background(Color.Black)
+                CameraView(
+                    cameraProviderFuture = cameraProviderFuture,
+                    lifecycleOwner = lifecycleOwner,
+                    analyzer = analyzer,
+                    onClose = { showCamera = false }
                 )
-                DisposableEffect(cameraProviderFuture, lifecycleOwner) {
-                    onDispose {
-                        val cameraProvider = cameraProviderFuture.get()
-                        cameraProvider.unbindAll()
-                    }
-                }
-                Button(onClick = { showCamera = false }) {
-                    Text("Close Camera")
-                }
             }
 
             if (showPermissionDialog) {
@@ -255,6 +220,59 @@ fun MainScreenContent(modifier: Modifier = Modifier) {
                     }
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun CameraView(
+    cameraProviderFuture: ListenableFuture<ProcessCameraProvider>,
+    lifecycleOwner: androidx.lifecycle.LifecycleOwner,
+    analyzer: ImageAnalysis.Analyzer,
+    onClose: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxWidth()/*.height(300.dp)*/.background(Color.Black)) {
+        AndroidView(
+            factory = { context ->
+                val previewView = PreviewView(context).apply {
+                    scaleType = PreviewView.ScaleType.FILL_CENTER
+                }
+
+                val preview = CameraPreview.Builder().build().also {
+                    it.surfaceProvider = previewView.surfaceProvider
+                }
+
+                val selector = CameraSelector.DEFAULT_BACK_CAMERA
+                val imageAnalysis = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .build()
+                    .also {
+                        it.setAnalyzer(ContextCompat.getMainExecutor(context), analyzer)
+                    }
+
+                cameraProviderFuture.addListener({
+                    val cameraProvider = cameraProviderFuture.get()
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner, selector, preview, imageAnalysis
+                    )
+                }, ContextCompat.getMainExecutor(context))
+
+                previewView
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        Button(
+            onClick = onClose,
+            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+        ) {
+            Text("Close Camera")
+        }
+    }
+    DisposableEffect(cameraProviderFuture, lifecycleOwner) {
+        onDispose {
+            val cameraProvider = cameraProviderFuture.get()
+            cameraProvider.unbindAll()
         }
     }
 }
