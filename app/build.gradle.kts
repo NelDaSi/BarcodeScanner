@@ -41,6 +41,8 @@ android {
 
 dependencies {
 
+    implementation ("androidx.navigation:navigation-compose:2.4.0") // Make sure this is in your dependencies
+
     implementation (libs.barcode.scanning)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
