@@ -4,16 +4,13 @@
    for details.
 -->
 <data-extraction-rules>
+    <!-- Scanned-part photos (img_*.jpg in filesDir) are excluded from both cloud backup and
+         device-to-device transfer; the Room database and SharedPreferences are backed up by
+         default since nothing else lives in filesDir. -->
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="file" path="." />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="file" path="." />
     </device-transfer>
-    -->
 </data-extraction-rules>
