@@ -14,6 +14,7 @@ import com.google.zxing.Reader
 import com.google.zxing.Result
 import com.google.zxing.common.HybridBinarizer
 import com.google.zxing.datamatrix.DataMatrixReader
+import java.util.concurrent.Executor
 import kotlin.math.min
 
 private const val ZXING_CROP_SIZE_PX = 480
@@ -59,6 +60,9 @@ private class ByteArrayLuminanceSource(
 
 class DafImageAnalyzer(
     private val barcodeScanner: BarcodeScanner,
+    // Listeners below are pinned to this executor so ML Kit's default (main-thread)
+    // dispatch doesn't pull the ZXing fallback decode onto the UI thread.
+    private val executor: Executor,
     private val onScannedValue: (String) -> Unit,
     private val onError: ((Throwable) -> Unit)? = null,
 ) {
@@ -88,7 +92,7 @@ class DafImageAnalyzer(
 
         // 1. Primary path: ML Kit
         barcodeScanner.process(inputImage)
-            .addOnSuccessListener { barcodes ->
+            .addOnSuccessListener(executor) { barcodes ->
                 Log.d("Scanner", "Detected ${barcodes.size} barcodes (ML Kit)")
                 val firstValue = barcodes.firstOrNull { it.rawValue != null }?.rawValue
 
@@ -113,11 +117,11 @@ class DafImageAnalyzer(
                     Log.e("Scanner", "ZXing fallback failed", zxEx)
                 }
             }
-            .addOnFailureListener { exception ->
+            .addOnFailureListener(executor) { exception ->
                 Log.e("Scanner", "Barcode scanning failed (ML Kit)", exception)
                 onError?.invoke(exception)
             }
-            .addOnCompleteListener {
+            .addOnCompleteListener(executor) {
                 imageProxy.close()
             }
     }

@@ -4,6 +4,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.ViewGroup
 import androidx.annotation.RequiresApi
@@ -1067,7 +1069,14 @@ private fun buildImageAnalyzer(
     shouldProcess: () -> Boolean,
     onScannedValue: (String) -> Unit,
 ): ImageAnalysis {
-    val dafAnalyzer = DafImageAnalyzer(barcodeScanner, onScannedValue)
+    val mainHandler = Handler(Looper.getMainLooper())
+    val dafAnalyzer = DafImageAnalyzer(
+        barcodeScanner = barcodeScanner,
+        executor = cameraExecutor,
+        // DafImageAnalyzer's listeners run on cameraExecutor (see `executor` above), so hop
+        // back to the main thread here before this touches any Compose state.
+        onScannedValue = { value -> mainHandler.post { onScannedValue(value) } },
+    )
     return ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build()
         .also { analysis ->
             analysis.setAnalyzer(cameraExecutor) { imageProxy ->
