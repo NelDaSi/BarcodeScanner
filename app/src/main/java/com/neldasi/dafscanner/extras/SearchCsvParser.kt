@@ -62,7 +62,7 @@ fun parseSearchItemsCsv(allText: String): List<SearchItem> {
                         SearchItem(
                             typeCode = type,
                             serialNumber = hex,
-                            decSerial = parsed?.serialDecimal ?: hexToDec(hex),
+                            decSerial = parsed?.serialDecimal ?: hexToDecimalOrNA(hex),
                             machine = csvValue(row, machineIndex),
                             outputMaterial = csvValue(row, outputMatIndex),
                             startDate = csvValue(row, startDateIndex),
@@ -130,14 +130,6 @@ private fun tokenizeCsv(allText: String): List<List<String>> {
         rows.add(currentRow)
     }
     return rows
-}
-
-private fun hexToDec(hex: String): String {
-    return try {
-        hex.toLong(16).toString()
-    } catch (_: Exception) {
-        "N/A"
-    }
 }
 
 private fun csvValue(row: List<String>, index: Int): String? {

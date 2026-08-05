@@ -6,7 +6,6 @@ import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.view.ViewGroup
 import androidx.annotation.RequiresApi
 import androidx.camera.core.AspectRatio
@@ -133,6 +132,9 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import androidx.compose.ui.tooling.preview.Preview as ComposePreview
 
+private const val CONTINUOUS_SCAN_COOLDOWN_SECONDS = 2
+private const val DUPLICATE_SCAN_DEBOUNCE_MS = 2000L
+private const val CAMERA_EXPOSURE_COMPENSATION_INDEX = 2
 
 data class ScanFeedback(
     val serial: String,
@@ -250,7 +252,7 @@ fun CameraScanScreen(
             val now = System.currentTimeMillis()
             
             // 1. Debounce rapid-fire scans of the exact same code in Continuous Mode
-            if ((continuousScanEnabled && value == lastProcessedCode) && (now - lastProcessedTimestamp) < 2000) {
+            if ((continuousScanEnabled && value == lastProcessedCode) && (now - lastProcessedTimestamp) < DUPLICATE_SCAN_DEBOUNCE_MS) {
                 scannedResult = null
                 isPaused = false
                 return@let
@@ -325,11 +327,11 @@ fun CameraScanScreen(
                     if (continuousScanEnabled) {
                         navController.previousBackStackEntry?.savedStateHandle?.set(NavKeys.SCANNED_RESULT, value)
                         navController.previousBackStackEntry?.savedStateHandle?.set("SCANNED_TIMESTAMP", now)
-                        appendPendingScan(context, value, now)
+                        ScanStorage.appendPendingScan(context, value, now)
                         sessionScanned[value] = now
                         
                         // Give it a small pause so it doesn't immediately scan the same thing again
-                        continuousCooldown = 2
+                        continuousCooldown = CONTINUOUS_SCAN_COOLDOWN_SECONDS
                         cooldownJob = verifyScope.launch {
                             while (continuousCooldown > 0) {
                                 delay(1000)
@@ -409,7 +411,7 @@ fun CameraScanScreen(
                     val boundCamera = provider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, analyzer)
                     camera = boundCamera
                     try { boundCamera.cameraControl.enableTorch(isTorchOn) } catch (_: Exception) {}
-                    try { boundCamera.cameraControl.setExposureCompensationIndex(2) } catch (_: Exception) {}
+                    try { boundCamera.cameraControl.setExposureCompensationIndex(CAMERA_EXPOSURE_COMPENSATION_INDEX) } catch (_: Exception) {}
                     isCameraReady = true
                     requestCenterFocus(previewView, boundCamera)
                 } catch (_: Exception) {
@@ -1047,20 +1049,6 @@ private fun ScannerOptionButton(
             modifier = Modifier.size(22.dp),
         )
     }
-}
-
-private fun appendPendingScan(context: Context, code: String, timestamp: Long) {
-    val prefs = ScanStorage.prefs(context)
-    val existing = prefs.getString(ScanStorage.Keys.PENDING_SCANS, null)
-    val list = try {
-        if (existing.isNullOrBlank()) mutableListOf() 
-        else com.google.gson.Gson().fromJson(existing, Array<ScanStorage.PendingScan>::class.java).toMutableList()
-    } catch (e: Exception) { 
-        Log.e("CameraScan", "Error parsing pending scans", e)
-        mutableListOf() 
-    }
-    list.add(ScanStorage.PendingScan(code, timestamp))
-    prefs.edit { putString(ScanStorage.Keys.PENDING_SCANS, com.google.gson.Gson().toJson(list)) }
 }
 
 private fun buildImageAnalyzer(

@@ -92,7 +92,7 @@ fun parseScannedCode(code: String): ParsedPart? {
             // Fallback for codes that don't strictly match but are >= 18
             else -> {
                 val hex = trimmedCode.substring(12, 18).uppercase(Locale.ROOT)
-                val decimal = try { hex.toLong(16).toString() } catch (_: Exception) { "N/A" }
+                val decimal = hexToDecimalOrNA(hex)
                 ParsedPart(
                     rawCode = trimmedCode,
                     format = EngineFormat.UNKNOWN,
@@ -106,5 +106,13 @@ fun parseScannedCode(code: String): ParsedPart? {
         }
     } catch (_: Exception) {
         null
+    }
+}
+
+internal fun hexToDecimalOrNA(hex: String): String {
+    return try {
+        hex.toLong(16).toString()
+    } catch (_: Exception) {
+        "N/A"
     }
 }

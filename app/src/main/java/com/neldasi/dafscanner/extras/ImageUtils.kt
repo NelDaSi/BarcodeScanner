@@ -2,6 +2,7 @@ package com.neldasi.dafscanner.extras
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -18,7 +19,7 @@ suspend fun saveImageToInternal(context: Context, uri: Uri, fullCode: String): S
         }
         Uri.fromFile(file).toString()
     } catch (e: Exception) {
-        e.printStackTrace()
+        Log.e("ImageUtils", "Error saving image for $fullCode", e)
         null
     }
 }

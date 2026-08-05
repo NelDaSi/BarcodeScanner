@@ -2,10 +2,12 @@ package com.neldasi.dafscanner.extras
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.core.content.edit
 import com.google.gson.Gson
 
 object ScanStorage {
+    private val gson = Gson()
 
     object Keys {
         const val PREFS_NAME = "prefs"
@@ -48,7 +50,7 @@ object ScanStorage {
         val pending = prefs.getString(Keys.PENDING_SCANS, null) ?: return emptyList()
         val result = mutableListOf<PendingScan>()
         try {
-            val arr = Gson().fromJson(pending, Array<PendingScan>::class.java)
+            val arr = gson.fromJson(pending, Array<PendingScan>::class.java)
             val seen = mutableSetOf<String>()
             arr?.forEach { scan ->
                 if (seen.add(scan.code)) {
@@ -61,5 +63,19 @@ object ScanStorage {
         // always clear after consumption
         prefs.edit { remove(Keys.PENDING_SCANS) }
         return result
+    }
+
+    fun appendPendingScan(context: Context, code: String, timestamp: Long) {
+        val prefs = prefs(context)
+        val existing = prefs.getString(Keys.PENDING_SCANS, null)
+        val list = try {
+            if (existing.isNullOrBlank()) mutableListOf()
+            else gson.fromJson(existing, Array<PendingScan>::class.java).toMutableList()
+        } catch (e: Exception) {
+            Log.e("ScanStorage", "Error parsing pending scans", e)
+            mutableListOf()
+        }
+        list.add(PendingScan(code, timestamp))
+        prefs.edit { putString(Keys.PENDING_SCANS, gson.toJson(list)) }
     }
 }

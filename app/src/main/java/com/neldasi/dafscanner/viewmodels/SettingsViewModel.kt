@@ -2,6 +2,7 @@ package com.neldasi.dafscanner.viewmodels
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.core.content.edit
@@ -58,7 +59,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             try {
                 AppDatabase.getDatabase(context).clearAllTables()
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("SettingsVM", "Error clearing database", e)
             }
 
             // 2. Synchronously clear all SharedPreferences using the KTX extension
@@ -68,7 +69,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     clear()
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("SettingsVM", "Error clearing SharedPreferences", e)
             }
 
             // 3. Delete files manually just in case
@@ -76,7 +77,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 context.filesDir.listFiles()?.forEach { it.deleteRecursively() }
                 context.cacheDir.listFiles()?.forEach { it.deleteRecursively() }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("SettingsVM", "Error deleting files/cache", e)
             }
 
             // 4. Nuclear option: Ask the system to wipe the app data and kill the process
