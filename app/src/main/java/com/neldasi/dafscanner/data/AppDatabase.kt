@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [ScannedPart::class, ConversionRecord::class, SearchItem::class], version = 4, exportSchema = false)
+@Database(entities = [ScannedPart::class, ConversionRecord::class, SearchItem::class], version = 4, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun scanDao(): ScanDao
     abstract fun conversionDao(): ConversionDao
@@ -22,7 +22,12 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "scan_database",
                 )
-                    .fallbackToDestructiveMigration()
+                    // NOTE: the next time `version` above changes, add a matching Migration
+                    // via .addMigrations(...) here. Without one, Room will crash on open
+                    // instead of silently deleting scan history, verification lists, and
+                    // conversion history — that crash is the signal to write the migration
+                    // before releasing, not a bug to "fix" by re-adding a destructive fallback.
+                    .fallbackToDestructiveMigrationOnDowngrade()
                     .build()
                 INSTANCE = instance
                 instance

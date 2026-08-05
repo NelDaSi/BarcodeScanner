@@ -22,3 +22,7 @@ suspend fun saveImageToInternal(context: Context, uri: Uri, fullCode: String): S
         null
     }
 }
+
+suspend fun deleteImageForCode(context: Context, fullCode: String): Unit = withContext(Dispatchers.IO) {
+    File(context.filesDir, "img_$fullCode.jpg").delete()
+}

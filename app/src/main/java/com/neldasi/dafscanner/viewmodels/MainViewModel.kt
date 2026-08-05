@@ -7,6 +7,7 @@ import com.neldasi.dafscanner.data.AppDatabase
 import com.neldasi.dafscanner.data.ScannedPart
 import com.neldasi.dafscanner.data.ScanRepository
 import com.neldasi.dafscanner.extras.UpdateManager
+import com.neldasi.dafscanner.extras.deleteImageForCode
 import com.neldasi.dafscanner.extras.parseScannedCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -114,12 +115,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteSelected(codes: List<String>) {
         viewModelScope.launch {
             repository.deleteParts(codes)
+            codes.forEach { deleteImageForCode(getApplication(), it) }
         }
     }
 
     fun deletePart(part: ScannedPart) {
         viewModelScope.launch {
             repository.delete(part)
+            deleteImageForCode(getApplication(), part.fullCode)
         }
     }
 

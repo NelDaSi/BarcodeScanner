@@ -1,0 +1,153 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 4,
+    "identityHash": "80af4523b97fffbf108e212630fadb3b",
+    "entities": [
+      {
+        "tableName": "scanned_parts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`fullCode` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `imageUri` TEXT, `note` TEXT, PRIMARY KEY(`fullCode`))",
+        "fields": [
+          {
+            "fieldPath": "fullCode",
+            "columnName": "fullCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "imageUri",
+            "columnName": "imageUri",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "fullCode"
+          ]
+        }
+      },
+      {
+        "tableName": "conversion_history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `hex` TEXT NOT NULL, `dec` TEXT NOT NULL, `timestamp` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hex",
+            "columnName": "hex",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dec",
+            "columnName": "dec",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "search_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`serialNumber` TEXT NOT NULL, `typeCode` TEXT NOT NULL, `decSerial` TEXT NOT NULL, `scanTimestamp` INTEGER, `scanOrder` INTEGER, `machine` TEXT, `outputMaterial` TEXT, `startDate` TEXT, `startTime` TEXT, `completeDate` TEXT, `completeTime` TEXT, PRIMARY KEY(`serialNumber`))",
+        "fields": [
+          {
+            "fieldPath": "serialNumber",
+            "columnName": "serialNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "typeCode",
+            "columnName": "typeCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "decSerial",
+            "columnName": "decSerial",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scanTimestamp",
+            "columnName": "scanTimestamp",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "scanOrder",
+            "columnName": "scanOrder",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "machine",
+            "columnName": "machine",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "outputMaterial",
+            "columnName": "outputMaterial",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "startDate",
+            "columnName": "startDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "startTime",
+            "columnName": "startTime",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "completeDate",
+            "columnName": "completeDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "completeTime",
+            "columnName": "completeTime",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "serialNumber"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '80af4523b97fffbf108e212630fadb3b')"
+    ]
+  }
+}
