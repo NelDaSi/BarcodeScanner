@@ -187,7 +187,7 @@ class SearchListViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun loadMore() {
-        if (_visibleCount.value < searchItems.value.size) {
+        if (hasMoreItems.value) {
             _visibleCount.value += 50
         }
     }
