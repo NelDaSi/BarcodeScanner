@@ -116,6 +116,7 @@ import com.neldasi.dafscanner.extras.DafImageAnalyzer
 import com.neldasi.dafscanner.extras.ParsedPart
 import com.neldasi.dafscanner.extras.ScanStorage
 import com.neldasi.dafscanner.extras.SettingsRepository
+import com.neldasi.dafscanner.extras.hexToDecimalOrNA
 import com.neldasi.dafscanner.extras.parseScannedCode
 import com.neldasi.dafscanner.navigation.NavKeys
 import com.neldasi.dafscanner.ui.theme.DafBlue
@@ -365,7 +366,6 @@ fun CameraScanScreen(
             previewViewRef?.let { requestCenterFocus(it, camera) }
         },
         onClose = {
-            searchViewModel?.clearResult()
             if (navController.previousBackStackEntry != null) {
                 navController.popBackStack()
             }
@@ -732,7 +732,7 @@ fun CameraScanScreenContent(
                         fontWeight = FontWeight.Black,
                     )
                     Text(
-                        text = "${stringResource(R.string.dec_prefix)}${verifyResult.parsedPart?.decSerial ?: try { verifyResult.serial.toLong(16).toString() } catch(_:Exception) { "N/A" }}",
+                        text = "${stringResource(R.string.dec_prefix)}${verifyResult.parsedPart?.decSerial ?: hexToDecimalOrNA(verifyResult.serial)}",
                         color = Color.White.copy(alpha = 0.9f),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,

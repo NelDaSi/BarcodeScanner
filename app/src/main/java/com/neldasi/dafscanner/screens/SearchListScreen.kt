@@ -74,7 +74,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -157,12 +156,6 @@ fun SearchListScreen(
             .map { it.serialNumber }
             .toList()
         navController.currentBackStackEntry?.savedStateHandle?.set("SCANNED_SERIALS", scannedSerials)
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            viewModel.clearResult()
-        }
     }
 
     SearchListContent(
@@ -1024,24 +1017,6 @@ private fun SortMenuItem(
             }
         }
     )
-}
-
-@Composable
-private fun FilterChip(label: String, onClear: () -> Unit) {
-    Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        shape = RoundedCornerShape(16.dp),
-        onClick = onClear
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
-            Spacer(Modifier.width(4.dp))
-            Icon(Icons.Rounded.Clear, contentDescription = null, modifier = Modifier.size(14.dp))
-        }
-    }
 }
 
 @RequiresApi(Build.VERSION_CODES.S)

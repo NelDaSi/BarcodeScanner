@@ -5,7 +5,7 @@ import androidx.core.content.edit
 
 object SettingsRepository {
 
-    private val defaultAllowedTypes = setOf(
+    val defaultAllowedTypes = setOf(
         "2245293", "2245295", "2261325", "2150001", "2342199", "2342201", "2012566",
     )
 

@@ -31,11 +31,6 @@ enum class SearchSortOption {
     PRODUCTION_TIME,
 }
 
-data class ScanMatchResult(
-    val serial: String,
-    val isMatch: Boolean,
-)
-
 class SearchListViewModel(application: Application) : AndroidViewModel(application) {
     private val searchItemDao = AppDatabase.getDatabase(application).searchItemDao()
 
@@ -144,8 +139,6 @@ class SearchListViewModel(application: Application) : AndroidViewModel(applicati
         .map { items -> items.count { it.scanTimestamp != null } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    private val _lastScannedResult = MutableStateFlow<ScanMatchResult?>(null)
-
     fun onSearchQueryChange(context: Context, query: String) {
         _searchQuery.value = query
         _visibleCount.value = 50 // Reset pagination on search
@@ -249,33 +242,25 @@ class SearchListViewModel(application: Application) : AndroidViewModel(applicati
                 } else {
                     Log.d("SearchListVM", "Match found but already scanned at ${item.scanTimestamp}")
                 }
-                _lastScannedResult.value = ScanMatchResult(serial = serial, isMatch = true)
             } else {
                 Log.d("SearchListVM", "No match for $serial")
-                _lastScannedResult.value = ScanMatchResult(serial = serial, isMatch = false)
             }
         }
-    }
-
-    fun clearResult() {
-        _lastScannedResult.value = null
     }
 
     fun clearList(context: Context) {
         viewModelScope.launch {
             searchItemDao.deleteAll()
-            _lastScannedResult.value = null
             _searchQuery.value = ""
             _machineFilter.value = null
             _typeFilter.value = null
             _sortOption.value = SearchSortOption.DEFAULT
             val prefs = ScanStorage.prefs(context)
-            prefs.edit { 
+            prefs.edit {
                 remove(ScanStorage.Keys.SEARCH_QUERY)
                 remove(ScanStorage.Keys.SEARCH_SORT_OPTION)
                 remove(ScanStorage.Keys.SEARCH_MACHINE_FILTER)
                 remove(ScanStorage.Keys.SEARCH_TYPE_FILTER)
-                remove(ScanStorage.Keys.SEARCH_LIST_DATA)
             }
         }
     }

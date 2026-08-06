@@ -20,7 +20,6 @@ object ScanStorage {
         const val ALLOWED_TYPES = "allowedTypes"
         
         // Search List Keys
-        const val SEARCH_LIST_DATA = "search_list_data"
         const val SEARCH_QUERY = "search_query"
         const val SEARCH_SORT_OPTION = "sort_option"
         const val SEARCH_MACHINE_FILTER = "machine_filter"
@@ -29,15 +28,6 @@ object ScanStorage {
 
     fun prefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(Keys.PREFS_NAME, Context.MODE_PRIVATE)
-    }
-
-    /**
-     * Factory reset: Clear all shared preferences.
-     */
-    fun clearAll(prefs: SharedPreferences) {
-        prefs.edit {
-            clear()
-        }
     }
 
     data class PendingScan(val code: String, val timestamp: Long)

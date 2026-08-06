@@ -124,9 +124,9 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(Unit) {
-        vibrateEnabled = prefs.getBoolean("vibrateEnabled", true)
-        screenAlwaysOn = prefs.getBoolean("screenAlwaysOn", true)
-        continuousScanEnabled = prefs.getBoolean("continuousScanEnabled", false)
+        vibrateEnabled = prefs.getBoolean(ScanStorage.Keys.VIBRATE_ENABLED, true)
+        screenAlwaysOn = prefs.getBoolean(ScanStorage.Keys.SCREEN_ALWAYS_ON, true)
+        continuousScanEnabled = prefs.getBoolean(ScanStorage.Keys.CONTINUOUS_SCAN_ENABLED, false)
     }
 
     SettingsScreenContent(
@@ -134,17 +134,17 @@ fun SettingsScreen(
         vibrateEnabled = vibrateEnabled,
         onVibrateChange = {
             vibrateEnabled = it
-            prefs.edit { putBoolean("vibrateEnabled", it) }
+            prefs.edit { putBoolean(ScanStorage.Keys.VIBRATE_ENABLED, it) }
         },
         screenAlwaysOn = screenAlwaysOn,
         onScreenAlwaysOnChange = {
             screenAlwaysOn = it
-            prefs.edit { putBoolean("screenAlwaysOn", it) }
+            prefs.edit { putBoolean(ScanStorage.Keys.SCREEN_ALWAYS_ON, it) }
         },
         continuousScanEnabled = continuousScanEnabled,
         onContinuousScanChange = {
             continuousScanEnabled = it
-            prefs.edit { putBoolean("continuousScanEnabled", it) }
+            prefs.edit { putBoolean(ScanStorage.Keys.CONTINUOUS_SCAN_ENABLED, it) }
         },
         currentTheme = currentTheme,
         onThemeChange = {
@@ -195,7 +195,7 @@ fun SettingsScreenContent(
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     val allowedTypes = remember { mutableStateListOf<String>() }
-    val defaultAllowedTypes = setOf("2245293", "2245295", "2261325", "2150001", "2342199", "2342201", "2012566")
+    val defaultAllowedTypes = SettingsRepository.defaultAllowedTypes
 
     LaunchedEffect(Unit) {
         allowedTypes.addAll(SettingsRepository.loadAllowedTypes(context))
